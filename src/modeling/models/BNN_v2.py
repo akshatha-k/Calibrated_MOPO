@@ -49,13 +49,11 @@ class BNN(tf.keras.Model):
         self.total_modules = len(self.model_config)
         self.modules = []
         self.decays = []
+        self.cal_vars = None
+        self.end_act, self.end_act_name = None, None
         self.build_model()
-
         # setattr(self, name, get_required_argument(params, "name", "Must provide name."))
         self.model_dir = params.get("model_dir", None)
-
-        self.end_act, self.end_act_name = None, None
-        self.cal_vars = None
 
         self.scaler = TensorStandardScaler(self.modules[0].get_input_dim())
         self.max_logvar = tf.Variable(

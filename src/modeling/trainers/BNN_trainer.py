@@ -80,7 +80,6 @@ class BNN_trainer:
                 train_loss += 0.01 * tf.math.reduce_sum(
                     self.model.max_logvar
                 ) - 0.01 * tf.math.reduce_sum(self.model.min_logvar)
-
             grads = tape.gradient(train_loss, self.model.trainable_variables)
             self.optimizer.apply_gradients(
                 grads_and_vars=zip(grads, self.model.trainable_variables),
@@ -140,7 +139,7 @@ class BNN_trainer:
 
     def create_prediction_tensors(self, inputs, factored=False):
         factored_mean, factored_variance = self.model(inputs)
-        if inputs.shape.ndims == 2 and not factored:
+        if len(inputs.shape) == 2 and not factored:
             mean = tf.math.reduce_mean(factored_mean, axis=0)
             variance = tf.math.reduce_mean(
                 tf.math.square(factored_mean - mean), axis=0
@@ -159,7 +158,7 @@ class BNN_trainer:
         with tf.name_scope("cal_step"):
             with tf.GradientTape() as tape:
                 cdf_pred = self.model.recalibrator(inputs)
-                cross_entropy = tf.math.sigmoid_cross_entropy_with_logits(
+                cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(
                     labels=targets, logits=cdf_pred
                 )
                 self.cal_loss = tf.math.reduce_mean(
@@ -169,21 +168,24 @@ class BNN_trainer:
             self.cal_optimizer.apply_gradients(
                 grads_and_vars=zip(grads, self.model.cal_vars), name="cal_step"
             )
-        return cal_loss
+        return self.cal_loss
 
     def calibrate(
         self, inputs, targets, hide_progress=False, holdout_ratio=0.0, max_logging=5000
     ):
+        inputs, targets = tf.cast(inputs, dtype=tf.float32), tf.cast(
+            targets, dtype=tf.float32
+        )
         self.model.scaler.fit(inputs)
-        all_mus, all_vars = self.predict(inputs)
+        self.predict(inputs)
         all_ys = targets
 
         train_x = np.zeros_like(all_ys)
         train_y = np.zeros_like(all_ys)
 
-        for d in range(all_mus.shape[1]):
-            mu = all_mus[:, d]
-            var = all_vars[:, d]
+        for d in range(self.sy_pred_mean.shape[1]):
+            mu = self.sy_pred_mean[:, d]
+            var = self.sy_pred_var[:, d]
             ys = all_ys[:, d]
 
             cdf_pred = norm.cdf(ys, loc=mu, scale=tf.math.sqrt(var))
@@ -224,7 +226,7 @@ class BNN_trainer:
             for x_batch, y_batch in iterate_minibatches(
                 train_x, train_y, self.batch_size
             ):
-                self.cal_loss = cal_step(x_batch, y_batch)
+                self.cal_loss = self.cal_step(x_batch, y_batch)
 
             if not hide_progress:
                 epoch_range.set_postfix({"Training loss(es)": self.cal_loss})
