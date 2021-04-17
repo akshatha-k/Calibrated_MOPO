@@ -1,4 +1,4 @@
-from src.modeling.models.BNN_v2 import BNN
+from src.modeling.models.BNN import BNN
 from src.modeling.trainers.BNN_trainer import BNN_trainer
 import tensorflow as tf
 import tensorflow_probability as tfp

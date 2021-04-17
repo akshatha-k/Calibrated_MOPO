@@ -292,12 +292,12 @@ class MPC(Controller):
 
         if get_pred_cost and not (self.log_traj_preds or self.log_particles):
             if self.model.is_tf_model:
-                pred_cost = self._compile_cost(self.ac_seq = soln[None])[0]
+                pred_cost = self._compile_cost(ac_seq=soln[None])[0]
             else:
                 raise NotImplementedError()
             return self.act(obs, t), pred_cost
         elif self.log_traj_preds or self.log_particles:
-            pred_cost, pred_traj = self._compile_cost(self.ac_seq = soln[None])
+            pred_cost, pred_traj = self._compile_cost(ac_seq=soln[None])
             pred_cost, pred_traj = pred_cost[0], pred_traj[:, 0]
 
             self.pred_costs.append(pred_cost)
@@ -465,7 +465,9 @@ class MPC(Controller):
                         predictions, axis=1, keep_dims=True
                     )
                     prediction_var = tf.math.reduce_mean(
-                        tf.math.square(predictions - prediction_mean), axis=1, keep_dims=True
+                        tf.math.square(predictions - prediction_mean),
+                        axis=1,
+                        keep_dims=True,
                     )
                     z = tf.random.normal(shape=tf.shape(predictions), mean=0, stddev=1)
                     samples = prediction_mean + z * tf.sqrt(prediction_var)

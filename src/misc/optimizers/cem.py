@@ -58,7 +58,8 @@ class CEMOptimizer(Optimizer):
         #         with tf.name_scope("CEMSolver") as scope:
         #             self.init_mean = tf.placeholder(dtype=tf.float32, shape=[sol_dim])
         #             self.init_var = tf.placeholder(dtype=tf.float32, shape=[sol_dim])
-
+        self.init_mean = tf.zeros(dtype=tf.float32, shape=[sol_dim])
+        self.init_var = tf.zeros(dtype=tf.float32, shape=[sol_dim])
         self.num_opt_iters, self.mean, self.var = None, None, None
         self.tf_compatible, self.cost_function = None, None
 
@@ -148,7 +149,8 @@ class CEMOptimizer(Optimizer):
             init_var (np.ndarray): The variance of the initial candidate distribution.
         """
         if self.tf_compatible:
-
+            self.init_mean = init_mean
+            self.init_var = init_var
             sol, solvar = self.mean, self.var
         else:
             mean, var, t = init_mean, init_var, 0

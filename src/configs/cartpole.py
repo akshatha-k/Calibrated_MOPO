@@ -7,9 +7,10 @@ import tensorflow as tf
 from dotmap import DotMap
 import gym
 
+from src.modeling.models.BNN import BNN
 from src.misc.DotmapUtils import get_required_argument
 from src.modeling.layers import FC
-import src.env
+import src.envs
 
 
 class CartpoleConfigModule:
@@ -69,9 +70,9 @@ class CartpoleConfigModule:
                 / (0.6 ** 2)
             )
         else:
-            return -tf.exp(
-                -tf.reduce_sum(
-                    tf.square(
+            return -tf.math.exp(
+                -tf.math.reduce_sum(
+                    tf.math.square(
                         CartpoleConfigModule._get_ee_pos(obs, are_tensors=True)
                         - np.array([0.0, 0.6])
                     ),
@@ -88,18 +89,18 @@ class CartpoleConfigModule:
             return 0.01 * tf.math.reduce_sum(tf.square(acs), axis=1)
 
     def nn_constructor(self, model_init_cfg):
-        model = get_required_argument(
-            model_init_cfg, "model_class", "Must provide model class"
-        )(
-            DotMap(
-                name="model",
-                num_networks=get_required_argument(
-                    model_init_cfg, "num_nets", "Must provide ensemble size"
-                ),
-                load_model=model_init_cfg.get("load_model", False),
-                model_dir=model_init_cfg.get("model_dir", None),
-            )
-        )
+        # model = get_required_argument(
+        #     model_init_cfg, "model_class", "Must provide model class"
+        # )(
+        #     DotMap(
+        #         name="model",
+        #         num_networks=get_required_argument(
+        #             model_init_cfg, "num_nets", "Must provide ensemble size"
+        #         ),
+        #         load_model=model_init_cfg.get("load_model", False),
+        #         model_dir=model_init_cfg.get("model_dir", None),
+        #     )
+        # )
         if not model_init_cfg.get("load_model", False):
             model_config = [
                 DotMap(
@@ -143,7 +144,7 @@ class CartpoleConfigModule:
                     }
                 ),
             ]
-            model = BNN(DotMap(name="test"), model_config)
+            model = BNN(DotMap(name="test", num_networks=1), model_config)
             # model.add(
             #     FC(
             #         500,
