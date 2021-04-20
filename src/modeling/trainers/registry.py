@@ -7,7 +7,7 @@ def register(fn):
     return fn
 
 
-def get_trainer(name=None):
+def get_config(name=None):
     if name is None:
         return _TRAINERS
     return _TRAINERS[name]

@@ -1,6 +1,7 @@
 import argparse
 
 parser = argparse.ArgumentParser(description="Calibrated MOPO")
+parser.add_argument("--output_dir", default="/home/projects/mopo/log", type=str)
 # Model Parameters
 parser.add_argument("--load_model", default=False, type=bool)
 parser.add_argument("--ensemble_size", default=1, type=int, help="Ensemble size to use")
@@ -12,6 +13,7 @@ parser.add_argument("--epochs", default=50, type=int)  # check if epochs is ntra
 parser.add_argument("--batch_size", default=1, type=int, help="batch_size to use")
 
 # Experiment parameters
+parser.add_argument("--env", default="Cartpole", type=str)
 # Simulator Parameters
 parser.add_argument("--task_hor", default=200, type=int)
 parser.add_argument("--stochastic", default=False, type=bool)
@@ -35,6 +37,8 @@ parser.add_argument("--num_elites", default=40, type=int)
 parser.add_argument("--epsilon", default=0.1, type=float)  # check default value
 parser.add_argument("--alpha", default=0.1, type=float)
 
+parser.add_argument("--n_record", default=0, type=int)
+parser.add_argument("--n_eval", default=1, type=int)
 # TODO: remove function references and hard code eg. obs_preproc
 
 

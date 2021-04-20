@@ -27,7 +27,7 @@ class Agent:
         self.args = args
         self.env = env
         self.noise_stddev = (
-            self.args.noise_stddev if self.args.noisy_actions) else None
+            self.args.noise_std if self.args.noisy_actions) else None
         )
 
         # if isinstance(self.env, DotMap):

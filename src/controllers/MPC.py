@@ -15,8 +15,9 @@ optimizers = {"CEM": CEMOptimizer, "Random": RandomOptimizer}
 
 
 class MPC(Controller):
-    def __init__(self, env, params, calibrate=False):
+    def __init__(self, env_config, params, calibrate=False):
         super().__init__(params)
+        self.env_config = env_config
         self.dO, self.dU = (
             env.observation_space.shape[0],
             env.action_space.shape[0],
