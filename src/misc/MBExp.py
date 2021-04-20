@@ -4,6 +4,7 @@ from __future__ import absolute_import
 
 import os
 from time import time, localtime, strftime
+from src.modeling.utils.args import get_args
 
 import numpy as np
 from scipy.io import savemat
@@ -11,12 +12,13 @@ from dotmap import DotMap
 
 from src.misc.DotmapUtils import get_required_argument
 from src.misc.Agent import Agent
+from src.modeling.trainers.registry import get_trainer
 
 SAVE_EVERY = 25
 
 
 class MBExperiment:
-    def __init__(self, params):
+    def __init__(self, args):
         """Initializes class instance.
 
         Argument:
@@ -44,6 +46,8 @@ class MBExperiment:
                     .neval (int): (optional) Number of rollouts for performance evaluation.
                         Defaults to 1.
         """
+        self.args = args
+
         self.env = get_required_argument(
             params.sim_cfg, "env", "Must provide environment."
         )

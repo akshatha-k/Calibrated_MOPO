@@ -42,7 +42,7 @@ if __name__ == "__main__":
         DotMap(
             {
                 "layer_name": "FC",
-                "input_dim": 100,
+                "input_dim": IN_DIM,
                 "output_dim": 10,
                 "activation": "swish",
                 "weight_decay": 0.05,
@@ -53,7 +53,7 @@ if __name__ == "__main__":
             {
                 "layer_name": "FC",
                 "input_dim": 10,
-                "output_dim": 2,
+                "output_dim": OUT_DIM,
                 "activation": "swish",
                 "weight_decay": 0.05,
                 "ensemble_size": 1,
