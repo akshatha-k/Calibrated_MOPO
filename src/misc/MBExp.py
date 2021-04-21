@@ -52,8 +52,11 @@ class MBExperiment:
         self.env = self.env_trainer.env
 
         self.agent = Agent(self.args, self.env)
-
-        self.policy = None  # TODO: Convert MPC and make an object here; we need a get controller here
+        # self.model = self.env_config.nn_constructor()
+        self.model_trainer = BNN_trainer(self.args, self.model)
+        self.policy = MPC(
+            self.env_config, self.args, self.model_trainer
+        )  # TODO: Convert MPC and make an object here; we need a get controller here
 
     def run_experiment(self):
         """Perform experiment."""

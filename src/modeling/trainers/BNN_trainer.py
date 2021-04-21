@@ -24,14 +24,13 @@ import math
 
 
 class BNN_trainer:
-    def __init__(self, params, model):
-        self.params = params
-        self.epochs = params.epochs
-        self.batch_size = params.batch_size
-        self.num_nets = params.num_nets
+    def __init__(self, args, model):
+        self.args = args
+        self.epochs = args.epochs
+        self.batch_size = args.batch_size
+        self.num_nets = args.ensemble_size
 
         self.model = model
-        self.model_dir = params.model_dir
 
         # Training objects
         self.optimizer = tf.keras.optimizers.Adam()

@@ -28,7 +28,9 @@ parser.add_argument("--ninit_rollouts", default=10, type=int)
 parser.add_argument("--npart", default=1, type=int)
 parser.add_argument("--ign_var", default=1, type=int)
 parser.add_argument("--plan_hor", default=25, type=int)
-parser.add_argument("--prop_type", default="TSinf", type=str)
+parser.add_argument(
+    "--prop_type", default="TSinf", type=str, choices=["E", "DS", "TSinf", "TS1", "MM"]
+)
 # Optimizer parameters
 parser.add_argument("--opt_type", default="CEM", type=str)
 parser.add_argument("--max_iters", default=5, type=int)
