@@ -3,7 +3,6 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import numpy as np
-from src.modeling.utils.args import get_args
 from gym.monitoring import VideoRecorder
 from dotmap import DotMap
 
@@ -26,9 +25,7 @@ class Agent:
         """
         self.args = args
         self.env = env
-        self.noise_stddev = (
-            self.args.noise_std if self.args.noisy_actions) else None
-        )
+        self.noise_stddev = self.args.noise_std if self.args.noisy_actions else None
 
         # if isinstance(self.env, DotMap):
         #     raise ValueError(

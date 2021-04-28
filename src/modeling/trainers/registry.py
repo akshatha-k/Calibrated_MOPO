@@ -3,7 +3,7 @@ _TRAINERS = dict()
 
 def register(fn):
     global _TRAINERS
-    _TRAINERS[fn.__name__] = fn()
+    _TRAINERS[fn.__name__] = fn
     return fn
 
 

@@ -4,15 +4,16 @@ from __future__ import absolute_import
 
 import os
 from time import time, localtime, strftime
-from src.modeling.utils.args import get_args
 
 import numpy as np
 from scipy.io import savemat
 from dotmap import DotMap
 
+from src.modeling.trainers import BNN_trainer
 from src.misc.DotmapUtils import get_required_argument
 from src.misc.Agent import Agent
-from src.modeling.trainers.registry import get_trainer
+from src.modeling.trainers.registry import get_config
+from src.controllers.MPC import MPC
 
 SAVE_EVERY = 25
 
@@ -49,10 +50,10 @@ class MBExperiment:
         self.args = args
 
         self.env_config = get_config(self.args.env)(self.args)
-        self.env = self.env_trainer.env
+        self.env = self.env_config.env
 
         self.agent = Agent(self.args, self.env)
-        # self.model = self.env_config.nn_constructor()
+        self.model = self.env_config.nn_constructor()
         self.model_trainer = BNN_trainer(self.args, self.model)
         self.policy = MPC(
             self.env_config, self.args, self.model_trainer
@@ -90,7 +91,7 @@ class MBExperiment:
             # os.makedirs(iter_dir, exist_ok=True)
 
             samples = []
-            for j in range(self.args.nrecord):
+            for j in range(self.args.n_record):
                 samples.append(
                     self.agent.sample(
                         self.task_hor,

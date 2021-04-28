@@ -231,36 +231,36 @@ class BNN_trainer:
                 epoch_range.set_postfix({"Training loss(es)": self.cal_loss})
 
 
-if __name__ == "__main__":
-    from dotmap import DotMap
+# if __name__ == "__main__":
+#     from dotmap import DotMap
 
-    NUM_SAMPLES = 1024
-    IN_DIM = 100
-    HIDDEN_DIM = 10
-    OUT_DIM = 2
+#     NUM_SAMPLES = 1024
+#     IN_DIM = 100
+#     HIDDEN_DIM = 10
+#     OUT_DIM = 2
 
-    model_config = [
-        DotMap(
-            {
-                "layer_name": "FC",
-                "input_dim": 32,
-                "output_dim": 32,
-                "activation": "swish",
-                "weight_decay": 0.05,
-                "ensemble_size": 1,
-            }
-        ),
-        DotMap(
-            {
-                "layer_name": "FC",
-                "input_dim": 32,
-                "output_dim": 4,
-                "activation": "swish",
-                "weight_decay": 0.05,
-                "ensemble_size": 1,
-            }
-        ),
-    ]
-    model = BNN(DotMap(name="test"), model_config)
-    a = tf.random.uniform(shape=(32, 32))
-    print(model(a)[0])
+#     model_config = [
+#         DotMap(
+#             {
+#                 "layer_name": "FC",
+#                 "input_dim": 32,
+#                 "output_dim": 32,
+#                 "activation": "swish",
+#                 "weight_decay": 0.05,
+#                 "ensemble_size": 1,
+#             }
+#         ),
+#         DotMap(
+#             {
+#                 "layer_name": "FC",
+#                 "input_dim": 32,
+#                 "output_dim": 4,
+#                 "activation": "swish",
+#                 "weight_decay": 0.05,
+#                 "ensemble_size": 1,
+#             }
+#         ),
+#     ]
+#     model = BNN(DotMap(name="test"), model_config)
+#     a = tf.random.uniform(shape=(32, 32))
+#     print(model(a)[0])

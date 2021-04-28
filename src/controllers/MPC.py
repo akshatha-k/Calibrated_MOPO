@@ -37,12 +37,14 @@ class MPC(Controller):
             sol_dim=self.args.plan_hor * self.dU,
             lower_bound=np.tile(self.ac_lb, [self.args.plan_hor]),
             upper_bound=np.tile(self.ac_ub, [self.args.plan_hor]),
-            **opt_cfg
+            popsize=self.args.popsize,
+            max_iters=self.args.max_iters,
+            num_elites=self.args.num_elites,
+            alpha=self.args.alpha,
+            epsilon=self.args.epsilon,
         )
         self.ac_buf = np.array([]).reshape(0, self.dU)
-        self.prev_sol = np.tile(
-            (self.ac_lb + self.ac_ub) / 2, [self.args.args.plan_hor]
-        )
+        self.prev_sol = np.tile((self.ac_lb + self.ac_ub) / 2, [self.args.plan_hor])
         self.init_var = np.tile(
             np.square(self.ac_ub - self.ac_lb) / 16, [self.args.plan_hor]
         )
@@ -50,39 +52,42 @@ class MPC(Controller):
             0, self.dU + self.env_config.obs_preproc(np.zeros([1, self.dO])).shape[-1]
         )
         self.train_targs = np.array([]).reshape(
-            0, self.targ_proc(np.zeros([1, self.dO]), np.zeros([1, self.dO])).shape[-1]
+            0,
+            self.env_config.targ_proc(
+                np.zeros([1, self.dO]), np.zeros([1, self.dO])
+            ).shape[-1],
         )
-
+        self.has_been_trained = False
         self.sy_cur_obs = tf.Variable(np.zeros(self.dO), dtype=tf.float32)
-        self.ac_seq = tf.placeholder(
-            shape=[1, self.args.plan_hor * self.dU], dtype=tf.float32
-        )
-        self.pred_cost, self.pred_traj = self.compile_cost(
-            self.ac_seq, get_pred_trajs=True
-        )
+        # self.ac_seq = tf.placeholder(
+        #     shape=[1, self.args.plan_hor * self.dU], dtype=tf.float32
+        # )
+        # self.pred_cost, self.pred_traj = self.compile_cost(
+        #     self.ac_seq, get_pred_trajs=True
+        # )
 
         print(
             "Created an MPC controller, prop mode %s, %d particles. Calibration set to %s"
             % (self.args.prop_type, self.args.npart, self.should_calibrate)
-            + ("Ignoring variance." if self.ign_var else "")
+            + ("Ignoring variance." if self.args.ign_var else "")
         )
 
-        if self.save_all_models:
-            print(
-                "Controller will save all models. (Note: This may be memory-intensive."
-            )
-        if self.log_particles:
-            print(
-                "Controller is logging particle predictions (Note: This may be memory-intensive)."
-            )
-            self.pred_particles = []
-            self.pred_costs = []
-        elif self.log_traj_preds:
-            print("Controller is logging trajectory prediction statistics (mean+var).")
-            self.pred_means, self.pred_vars = [], []
-            self.pred_costs = []
-        else:
-            print("Trajectory prediction logging is disabled.")
+        # if self.save_all_models:
+        #     print(
+        #         "Controller will save all models. (Note: This may be memory-intensive."
+        #     )
+        # if self.log_particles:
+        #     print(
+        #         "Controller is logging particle predictions (Note: This may be memory-intensive)."
+        #     )
+        #     self.pred_particles = []
+        #     self.pred_costs = []
+        # elif self.log_traj_preds:
+        #     print("Controller is logging trajectory prediction statistics (mean+var).")
+        #     self.pred_means, self.pred_vars = [], []
+        #     self.pred_costs = []
+        # else:
+        #     print("Trajectory prediction logging is disabled.")
 
     def train(self, obs_trajs, acs_trajs, rews_trajs, logdir=None):
         # Construct new training points and add to training set
@@ -107,6 +112,10 @@ class MPC(Controller):
             self.trainer.calibrate(cal_in, cal_targs)
 
         self.has_been_trained = True
+
+    def reset(self):
+        self.prev_sol = np.tile((self.ac_lb + self.ac_ub) / 2, [self.args.plan_hor])
+        self.optimizer.reset()
 
     def act(self, obs, t, get_pred_cost=False):
         """Returns the action that this controller would take at time t given observation obs.
@@ -133,50 +142,48 @@ class MPC(Controller):
         )
         self.ac_buf = soln[: self.per * self.dU].reshape(-1, self.dU)
 
-        if get_pred_cost and not (self.log_traj_preds or self.log_particles):
-            if self.model.is_tf_model:
-                pred_cost = self.model.sess.run(
-                    self.pred_cost, feed_dict={self.ac_seq: soln[None]}
-                )[0]
+        if get_pred_cost:
+            if self.trainer.model.is_tf_model:
+                pred_cost, pred_traj = self.compile_cost(soln[None])
             else:
                 raise NotImplementedError()
             return self.act(obs, t), pred_cost
-        elif self.log_traj_preds or self.log_particles:
-            pred_cost, pred_traj = self.model.sess.run(
-                [self.pred_cost, self.pred_traj], feed_dict={self.ac_seq: soln[None]}
-            )
-            pred_cost, pred_traj = pred_cost[0], pred_traj[:, 0]
+        # elif self.log_traj_preds or self.log_particles:
+        #     pred_cost, pred_traj = self.trainer.model.sess.run(
+        #         [self.pred_cost, self.pred_traj], feed_dict={self.ac_seq: soln[None]}
+        #     )
+        #     pred_cost, pred_traj = pred_cost[0], pred_traj[:, 0]
 
-            self.pred_costs.append(pred_cost)
+        #     self.pred_costs.append(pred_cost)
 
-            if self.log_particles:
-                self.pred_particles.append(pred_traj)
-            else:
-                curr_mean = np.mean(pred_traj, axis=1, keepdims=True)
-                curr_var = np.mean(np.square(pred_traj - curr_mean), axis=1)
-                self.pred_means.append(
-                    curr_mean.squeeze()
-                )  # np.mean(pred_traj, axis=1))
-                self.pred_vars.append(curr_var)
+        #     if self.log_particles:
+        #         self.pred_particles.append(pred_traj)
+        #     else:
+        #         curr_mean = np.mean(pred_traj, axis=1, keepdims=True)
+        #         curr_var = np.mean(np.square(pred_traj - curr_mean), axis=1)
+        #         self.pred_means.append(
+        #             curr_mean.squeeze()
+        #         )  # np.mean(pred_traj, axis=1))
+        #         self.pred_vars.append(curr_var)
 
-            if get_pred_cost:
-                return self.act(obs, t), pred_cost
+        # if get_pred_cost:
+        #     return self.act(obs, t), pred_cost
         return self.act(obs, t)
 
     def compile_cost(self, ac_seqs, get_pred_trajs=False):
         t, nopt = tf.constant(0), tf.shape(ac_seqs)[0]
-        init_costs = tf.zeros([nopt, self.npart])
-        ac_seqs = tf.reshape(ac_seqs, [-1, self.plan_hor, self.dU])
+        init_costs = tf.zeros([nopt, self.args.npart])
+        ac_seqs = tf.reshape(ac_seqs, [-1, self.args.plan_hor, self.dU])
         ac_seqs = tf.reshape(
             tf.tile(
-                tf.transpose(ac_seqs, [1, 0, 2])[:, :, None], [1, 1, self.npart, 1]
+                tf.transpose(ac_seqs, [1, 0, 2])[:, :, None], [1, 1, self.args.npart, 1]
             ),
-            [self.plan_hor, -1, self.dU],
+            [self.args.plan_hor, -1, self.dU],
         )
-        init_obs = tf.tile(self.sy_cur_obs[None], [nopt * self.npart, 1])
+        init_obs = tf.tile(self.sy_cur_obs[None], [nopt * self.args.npart, 1])
 
         def continue_prediction(t, *args):
-            return tf.less(t, self.plan_hor)
+            return tf.less(t, self.args.plan_hor)
 
         if get_pred_trajs:
             pred_trajs = init_obs[None]
@@ -186,7 +193,7 @@ class MPC(Controller):
                 next_obs = self._predict_next_obs(cur_obs, cur_acs)
                 delta_cost = tf.reshape(
                     self.obs_cost_fn(next_obs) + self.ac_cost_fn(cur_acs),
-                    [-1, self.npart],
+                    [-1, self.args.npart],
                 )
                 next_obs = self.env_config.obs_postproc2(next_obs)
                 pred_trajs = tf.concat([pred_trajs, next_obs[None]], axis=0)
@@ -244,7 +251,7 @@ class MPC(Controller):
     def _predict_next_obs(self, obs, acs):
         proc_obs = self.env_config.obs_preproc(obs)
 
-        if self.model.is_tf_model:
+        if self.trainer.model.is_tf_model:
             # TS Optimization: Expand so that particles are only passed through one of the networks.
             if self.prop_mode == "TS1":
                 proc_obs = tf.reshape(
@@ -268,10 +275,10 @@ class MPC(Controller):
 
             # Obtain model predictions
             inputs = tf.concat([proc_obs, acs], axis=-1)
-            mean, var = self.model.create_prediction_tensors(inputs)
+            mean, var = self.trainer.create_prediction_tensors(inputs)
 
-            if self.model.is_probabilistic and not self.ign_var:
-                predictions = self.model.sample_predictions(
+            if not self.args.ign_var:
+                predictions = self.trainer.model.sample_predictions(
                     mean, var, calibrate=self.should_calibrate
                 )
 
@@ -298,7 +305,7 @@ class MPC(Controller):
                 predictions = self._flatten_to_matrix(predictions)
             if self.args.prop_type == "TS1":
                 predictions = tf.reshape(
-                    predictions, [-1, self.npart, predictions.get_shape()[-1]]
+                    predictions, [-1, self.args.npart, predictions.get_shape()[-1]]
                 )
                 sort_idxs = tf.math.top_k(-sort_idxs, k=self.args.npart).indices
                 idxs = tf.concat([tmp, sort_idxs[:, :, None]], axis=-1)

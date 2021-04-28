@@ -6,7 +6,7 @@ import numpy as np
 import tensorflow as tf
 from dotmap import DotMap
 import gym
-from src.modeling.utils.args import get_args
+from src.args import get_args
 from src.modeling.models.BNN import BNN
 from src.misc.DotmapUtils import get_required_argument
 from src.modeling.layers import FC
@@ -14,7 +14,6 @@ import src.envs
 from src.modeling.trainers.registry import register
 
 
-@register
 class Cartpole:
     # ENV_NAME = "MBRLCartpole-v0"
     # TASK_HORIZON = 200
@@ -191,3 +190,8 @@ class Cartpole:
             return np.concatenate(
                 [x0 - 0.6 * np.sin(theta), -0.6 * np.cos(theta)], axis=1
             )
+
+
+@register
+def cartpole(args):
+    return Cartpole(args)
