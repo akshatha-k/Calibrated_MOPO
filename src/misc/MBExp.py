@@ -94,21 +94,22 @@ class MBExperiment:
             for j in range(self.args.n_record):
                 samples.append(
                     self.agent.sample(
-                        self.task_hor,
+                        self.args.task_hor,
                         self.policy,
-                        os.path.join(self.args.output_dir, "rollout%d.mp4" % j),
+                        None
+                        # os.path.join(self.args.output_dir, "rollout%d.mp4" % j),
                     )
                 )
             # if self.args.nrecord > 0:
             #     for item in filter(lambda f: f.endswith(".json"), os.listdir(iter_dir)):
             #         os.remove(os.path.join(iter_dir, item))
             for j in range(
-                max(self.args.neval, self.args.nrollouts_per_iter) - self.args.nrecord
+                max(self.args.n_eval, self.args.nrollouts_per_iter) - self.args.n_record
             ):
                 samples.append(self.agent.sample(self.args.task_hor, self.policy))
             print(
                 "Rewards obtained:",
-                [sample["reward_sum"] for sample in samples[: self.args.neval]],
+                [sample["reward_sum"] for sample in samples[: self.args.n_eval]],
             )
             traj_obs.extend(
                 [sample["obs"] for sample in samples[: self.args.nrollouts_per_iter]]
@@ -117,7 +118,7 @@ class MBExperiment:
                 [sample["ac"] for sample in samples[: self.args.nrollouts_per_iter]]
             )
             traj_rets.extend(
-                [sample["reward_sum"] for sample in samples[: self.args.neval]]
+                [sample["reward_sum"] for sample in samples[: self.args.n_eval]]
             )
             traj_rews.extend(
                 [

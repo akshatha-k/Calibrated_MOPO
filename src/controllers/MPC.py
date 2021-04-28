@@ -20,6 +20,8 @@ class MPC(Controller):
         self.env_config = env_config
         self.args = args
         self.trainer = model_trainer
+        self.obs_cost_fn = self.env_config.obs_cost_fn
+        self.ac_cost_fn = self.env_config.ac_cost_fn
         self.dO, self.dU = (
             self.env_config.env.observation_space.shape[0],
             self.env_config.env.action_space.shape[0],
@@ -31,6 +33,7 @@ class MPC(Controller):
         # self.ac_ub = np.minimum(self.ac_ub, params.ac_ub)
         # self.ac_lb = np.maximum(self.ac_lb, params.ac_lb)
         # self.per = params.per
+        self.per = 1  # TODO: see what per does and add an argument
         self.should_calibrate = calibrate
 
         self.optimizer = optimizers[args.opt_type](
@@ -136,11 +139,14 @@ class MPC(Controller):
 
         self.sy_cur_obs = obs
 
-        soln = self.optimizer.obtain_solution(self.prev_sol, self.init_var)
+        soln = self.optimizer.obtain_solution(
+            self.compile_cost, self.prev_sol, self.init_var, True
+        )
         self.prev_sol = np.concatenate(
             [np.copy(soln)[self.per * self.dU :], np.zeros(self.per * self.dU)]
         )
-        self.ac_buf = soln[: self.per * self.dU].reshape(-1, self.dU)
+        self.ac_buf = tf.reshape(soln[: self.per * self.dU], [-1, self.dU])
+        # self.ac_buf = soln[: self.per * self.dU].reshape(-1, self.dU)
 
         if get_pred_cost:
             if self.trainer.model.is_tf_model:
@@ -249,11 +255,12 @@ class MPC(Controller):
             )
 
     def _predict_next_obs(self, obs, acs):
-        proc_obs = self.env_config.obs_preproc(obs)
-
+        proc_obs = tf.cast(self.env_config.obs_preproc(obs), tf.float32)
+        acs = tf.cast(acs, tf.float32)
+        obs = tf.cast(obs, tf.float32)
         if self.trainer.model.is_tf_model:
             # TS Optimization: Expand so that particles are only passed through one of the networks.
-            if self.prop_mode == "TS1":
+            if self.args.prop_type == "TS1":
                 proc_obs = tf.reshape(
                     proc_obs, [-1, self.args.npart, proc_obs.get_shape()[-1]]
                 )
@@ -281,7 +288,7 @@ class MPC(Controller):
                 predictions = self.trainer.model.sample_predictions(
                     mean, var, calibrate=self.should_calibrate
                 )
-
+                predictions = tf.cast(predictions, tf.float32)
                 if self.args.prop_type == "MM":
                     model_out_dim = predictions.get_shape()[-1].value
 

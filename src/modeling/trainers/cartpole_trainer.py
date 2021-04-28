@@ -55,6 +55,10 @@ class Cartpole:
         return obs + pred
 
     @staticmethod
+    def obs_postproc2(next_obs):
+        return next_obs
+
+    @staticmethod
     def targ_proc(obs, next_obs):
         return next_obs - obs
 
@@ -64,7 +68,7 @@ class Cartpole:
             return -np.exp(
                 -np.sum(
                     np.square(
-                        CartpoleConfigModule._get_ee_pos(obs, are_tensors=False)
+                        Cartpole._get_ee_pos(obs, are_tensors=False)
                         - np.array([0.0, 0.6])
                     ),
                     axis=1,
@@ -75,7 +79,7 @@ class Cartpole:
             return -tf.math.exp(
                 -tf.math.reduce_sum(
                     tf.math.square(
-                        CartpoleConfigModule._get_ee_pos(obs, are_tensors=True)
+                        Cartpole._get_ee_pos(obs, are_tensors=True)
                         - np.array([0.0, 0.6])
                     ),
                     axis=1,

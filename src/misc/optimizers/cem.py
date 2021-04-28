@@ -92,7 +92,7 @@ class CEMOptimizer(Optimizer):
                     var,
                 )
                 initializer = tf.keras.initializers.TruncatedNormal(
-                    mean, tf.math.sqrt(constrained_var)
+                    mean, tf.cast(tf.math.sqrt(constrained_var), tf.float32)
                 )
                 samples = initializer(shape=[self.popsize, self.sol_dim])
 
@@ -111,7 +111,6 @@ class CEMOptimizer(Optimizer):
 
                 mean = self.alpha * mean + (1 - self.alpha) * new_mean
                 var = self.alpha * var + (1 - self.alpha) * new_var
-
                 return t + 1, mean, var, best_val, best_sol
 
             (
@@ -131,6 +130,7 @@ class CEMOptimizer(Optimizer):
                     self.init_mean,
                 ],
             )
+            sol, solvar = self.mean, self.var
 
         else:
             mean, var, t = init_mean, init_var, 0

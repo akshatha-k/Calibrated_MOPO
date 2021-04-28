@@ -54,7 +54,6 @@ class Agent:
         """
         video_record = record_fname is not None
         recorder = None if not video_record else VideoRecorder(self.env, record_fname)
-
         times, rewards = [], []
         O, A, reward_sum, done = [self.env.reset()], [], 0, False
 
