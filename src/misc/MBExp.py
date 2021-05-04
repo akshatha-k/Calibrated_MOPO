@@ -9,14 +9,17 @@ import numpy as np
 from scipy.io import savemat
 from dotmap import DotMap
 
-from dmbrl.misc.DotmapUtils import get_required_argument
-from dmbrl.misc.Agent import Agent
+from src.modeling.trainers import BNN_trainer
+from src.misc.DotmapUtils import get_required_argument
+from src.misc.Agent import Agent
+from src.modeling.trainers.registry import get_config
+from src.controllers.MPC import MPC
 
 SAVE_EVERY = 25
 
 
 class MBExperiment:
-    def __init__(self, params):
+    def __init__(self, args):
         """Initializes class instance.
 
         Argument:
@@ -44,62 +47,33 @@ class MBExperiment:
                     .neval (int): (optional) Number of rollouts for performance evaluation.
                         Defaults to 1.
         """
-        self.env = get_required_argument(
-            params.sim_cfg, "env", "Must provide environment."
-        )
-        self.task_hor = get_required_argument(
-            params.sim_cfg, "task_hor", "Must provide task horizon."
-        )
-        if params.sim_cfg.get("stochastic", False):
-            self.agent = Agent(
-                DotMap(
-                    env=self.env,
-                    noisy_actions=True,
-                    noise_stddev=get_required_argument(
-                        params.sim_cfg,
-                        "noise_std",
-                        "Must provide noise standard deviation in the case of a stochastic environment.",
-                    ),
-                )
-            )
-        else:
-            self.agent = Agent(DotMap(env=self.env, noisy_actions=False))
+        self.args = args
 
-        self.ntrain_iters = get_required_argument(
-            params.exp_cfg,
-            "ntrain_iters",
-            "Must provide number of training iterations.",
-        )
-        self.nrollouts_per_iter = params.exp_cfg.get("nrollouts_per_iter", 1)
-        self.ninit_rollouts = params.exp_cfg.get("ninit_rollouts", 1)
-        self.policy = get_required_argument(
-            params.exp_cfg, "policy", "Must provide a policy."
-        )
+        self.env_config = get_config(self.args.env)(self.args)
+        self.env = self.env_config.env
 
-        self.logdir = os.path.join(
-            get_required_argument(
-                params.log_cfg, "logdir", "Must provide log parent directory."
-            ),
-            strftime("%Y-%m-%d--%H:%M:%S", localtime()),
-        )
-        self.nrecord = params.log_cfg.get("nrecord", 0)
-        self.neval = params.log_cfg.get("neval", 1)
+        self.agent = Agent(self.args, self.env)
+        self.model = self.env_config.nn_constructor()
+        self.model_trainer = BNN_trainer(self.args, self.model)
+        self.policy = MPC(
+            self.env_config, self.args, self.model_trainer
+        )  # TODO: Convert MPC and make an object here; we need a get controller here
 
     def run_experiment(self):
         """Perform experiment."""
-        os.makedirs(self.logdir, exist_ok=True)
+        # os.makedirs(self.logdir, exist_ok=True)
 
         traj_obs, traj_acs, traj_rets, traj_rews = [], [], [], []
 
         # Perform initial rollouts
         samples = []
-        for i in range(self.ninit_rollouts):
-            samples.append(self.agent.sample(self.task_hor, self.policy))
+        for i in range(self.args.ninit_rollouts):
+            samples.append(self.agent.sample(self.args.task_hor, self.policy))
             traj_obs.append(samples[-1]["obs"])
             traj_acs.append(samples[-1]["ac"])
             traj_rews.append(samples[-1]["rewards"])
 
-        if self.ninit_rollouts > 0:
+        if self.args.ninit_rollouts > 0:
             self.policy.train(
                 [sample["obs"] for sample in samples],
                 [sample["ac"] for sample in samples],
@@ -107,50 +81,55 @@ class MBExperiment:
             )
 
         # Training loop
-        for i in range(self.ntrain_iters):
+        for i in range(self.args.ntrain_iters):
             print(
                 "####################################################################"
             )
             print("Starting training iteration %d." % (i + 1))
 
-            iter_dir = os.path.join(self.logdir, "train_iter%d" % (i + 1))
-            os.makedirs(iter_dir, exist_ok=True)
+            # iter_dir = os.path.join(self.logdir, "train_iter%d" % (i + 1))
+            # os.makedirs(iter_dir, exist_ok=True)
 
             samples = []
-            for j in range(self.nrecord):
+            for j in range(self.args.n_record):
                 samples.append(
                     self.agent.sample(
-                        self.task_hor,
+                        self.args.task_hor,
                         self.policy,
-                        os.path.join(iter_dir, "rollout%d.mp4" % j),
+                        None
+                        # os.path.join(self.args.output_dir, "rollout%d.mp4" % j),
                     )
                 )
-            if self.nrecord > 0:
-                for item in filter(lambda f: f.endswith(".json"), os.listdir(iter_dir)):
-                    os.remove(os.path.join(iter_dir, item))
-            for j in range(max(self.neval, self.nrollouts_per_iter) - self.nrecord):
-                samples.append(self.agent.sample(self.task_hor, self.policy))
+            # if self.args.nrecord > 0:
+            #     for item in filter(lambda f: f.endswith(".json"), os.listdir(iter_dir)):
+            #         os.remove(os.path.join(iter_dir, item))
+            for j in range(
+                max(self.args.n_eval, self.args.nrollouts_per_iter) - self.args.n_record
+            ):
+                samples.append(self.agent.sample(self.args.task_hor, self.policy))
             print(
                 "Rewards obtained:",
-                [sample["reward_sum"] for sample in samples[: self.neval]],
+                [sample["reward_sum"] for sample in samples[: self.args.n_eval]],
             )
             traj_obs.extend(
-                [sample["obs"] for sample in samples[: self.nrollouts_per_iter]]
+                [sample["obs"] for sample in samples[: self.args.nrollouts_per_iter]]
             )
             traj_acs.extend(
-                [sample["ac"] for sample in samples[: self.nrollouts_per_iter]]
+                [sample["ac"] for sample in samples[: self.args.nrollouts_per_iter]]
             )
-            traj_rets.extend([sample["reward_sum"] for sample in samples[: self.neval]])
+            traj_rets.extend(
+                [sample["reward_sum"] for sample in samples[: self.args.n_eval]]
+            )
             traj_rews.extend(
-                [sample["rewards"] for sample in samples[: self.nrollouts_per_iter]]
+                [
+                    sample["rewards"]
+                    for sample in samples[: self.args.nrollouts_per_iter]
+                ]
             )
-            samples = samples[: self.nrollouts_per_iter]
+            samples = samples[: self.args.nrollouts_per_iter]
 
-            self.policy.dump_logs(
-                self.logdir, iter_dir if (i + 1) % SAVE_EVERY == 0 else None
-            )
             savemat(
-                os.path.join(self.logdir, "logs.mat"),
+                os.path.join(self.args.output_dir, "logs.mat"),
                 {
                     "observations": traj_obs,
                     "actions": traj_acs,
@@ -159,14 +138,13 @@ class MBExperiment:
                 },
             )
 
-            if i < self.ntrain_iters - 1:
+            if i < self.args.ntrain_iters - 1:
                 self.policy.train(
                     [sample["obs"] for sample in samples],
                     [sample["ac"] for sample in samples],
                     [sample["rewards"] for sample in samples],
-                    logdir=iter_dir if (i + 1) % SAVE_EVERY == 0 else None,
                 )
 
             # Delete iteration directory if not used
-            if len(os.listdir(iter_dir)) == 0:
-                os.rmdir(iter_dir)
+            if len(os.listdir(self.args.output_dir)) == 0:
+                os.rmdir(self.args.output_dir)

@@ -12,7 +12,7 @@ import time
 class Agent:
     """An general class for RL agents."""
 
-    def __init__(self, params):
+    def __init__(self, args, env):
         """Initializes an agent.
 
         Arguments:
@@ -23,21 +23,19 @@ class Agent:
                 .noise_stddev: (float) The standard deviation to be used for the
                     action noise if params.noisy_actions is True.
         """
-        self.env = params.env
-        self.noise_stddev = (
-            params.noise_stddev if params.get("noisy_actions", False) else None
-        )
+        self.args = args
+        self.env = env
+        self.noise_stddev = self.args.noise_std if self.args.noisy_actions else None
 
-        if isinstance(self.env, DotMap):
-            raise ValueError(
-                "Environment must be provided to the agent at initialization."
-            )
-        if (not isinstance(self.noise_stddev, float)) and params.get(
-            "noisy_actions", False
-        ):
-            raise ValueError(
-                "Must provide standard deviation for noise for noisy actions."
-            )
+        # if isinstance(self.env, DotMap):
+        #     raise ValueError(
+        #         "Environment must be provided to the agent at initialization."
+        #     )
+        # if (not isinstance(self.noise_stddev, float)) and (not self.args.noisy_actions)
+        # ):
+        #     raise ValueError(
+        #         "Must provide standard deviation for noise for noisy actions."
+        #     )
 
         if self.noise_stddev is not None:
             self.dU = self.env.action_space.shape[0]
@@ -56,7 +54,6 @@ class Agent:
         """
         video_record = record_fname is not None
         recorder = None if not video_record else VideoRecorder(self.env, record_fname)
-
         times, rewards = [], []
         O, A, reward_sum, done = [self.env.reset()], [], 0, False
 

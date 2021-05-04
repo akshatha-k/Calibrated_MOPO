@@ -58,30 +58,25 @@ class CEMOptimizer(Optimizer):
         #         with tf.name_scope("CEMSolver") as scope:
         #             self.init_mean = tf.placeholder(dtype=tf.float32, shape=[sol_dim])
         #             self.init_var = tf.placeholder(dtype=tf.float32, shape=[sol_dim])
-
+        self.init_mean = tf.zeros(dtype=tf.float32, shape=[sol_dim])
+        self.init_var = tf.zeros(dtype=tf.float32, shape=[sol_dim])
         self.num_opt_iters, self.mean, self.var = None, None, None
         self.tf_compatible, self.cost_function = None, None
 
-    def setup(self, cost_function, tf_compatible):
-        """Sets up this optimizer using a given cost function.
+    def reset(self):
+        pass
+
+    def obtain_solution(self, cost_function, init_mean, init_var, tf_compatible):
+        """Optimizes the cost function using the provided initial candidate distribution
 
         Arguments:
-            cost_function (func): A function for computing costs over a batch of candidate solutions.
-            tf_compatible (bool): True if the cost function provided is tf.Tensor-valued.
-
-        Returns: None
+            init_mean (np.ndarray): The mean of the initial candidate distribution.
+            init_var (np.ndarray): The variance of the initial candidate distribution.
         """
-        if tf_compatible is None:
-            raise RuntimeError(
-                "Cannot pass in a tf.Tensor-valued cost function without passing in a TensorFlow "
-                "session into the constructor"
-            )
-
-        self.tf_compatible = tf_compatible
-
-        if not tf_compatible:
-            self.cost_function = cost_function
-        else:
+        self.cost_function = cost_function
+        if tf_compatible:
+            self.init_mean = init_mean
+            self.init_var = init_var
 
             def continue_optimization(t, mean, var, best_val, best_sol):
                 return tf.logical_and(
@@ -97,7 +92,7 @@ class CEMOptimizer(Optimizer):
                     var,
                 )
                 initializer = tf.keras.initializers.TruncatedNormal(
-                    mean, tf.math.sqrt(constrained_var)
+                    mean, tf.cast(tf.math.sqrt(constrained_var), tf.float32)
                 )
                 samples = initializer(shape=[self.popsize, self.sol_dim])
 
@@ -110,13 +105,12 @@ class CEMOptimizer(Optimizer):
                     lambda: (best_val, best_sol),
                 )
 
-                elites = tf.gather(samples, indices)
+                elites = tf.gather(samples, indices)  # TODO: check the axis
                 new_mean = tf.math.reduce_mean(elites, axis=0)
                 new_var = tf.math.reduce_mean(tf.square(elites - new_mean), axis=0)
 
                 mean = self.alpha * mean + (1 - self.alpha) * new_mean
                 var = self.alpha * var + (1 - self.alpha) * new_var
-
                 return t + 1, mean, var, best_val, best_sol
 
             (
@@ -136,20 +130,8 @@ class CEMOptimizer(Optimizer):
                     self.init_mean,
                 ],
             )
-
-    def reset(self):
-        pass
-
-    def obtain_solution(self, init_mean, init_var):
-        """Optimizes the cost function using the provided initial candidate distribution
-
-        Arguments:
-            init_mean (np.ndarray): The mean of the initial candidate distribution.
-            init_var (np.ndarray): The variance of the initial candidate distribution.
-        """
-        if self.tf_compatible:
-
             sol, solvar = self.mean, self.var
+
         else:
             mean, var, t = init_mean, init_var, 0
             X = stats.truncnorm(

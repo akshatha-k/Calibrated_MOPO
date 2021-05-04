@@ -6,29 +6,31 @@ import numpy as np
 import tensorflow as tf
 from dotmap import DotMap
 import gym
-
+from src.args import get_args
 from src.modeling.models.BNN import BNN
 from src.misc.DotmapUtils import get_required_argument
 from src.modeling.layers import FC
 import src.envs
+from src.modeling.trainers.registry import register
 
 
-class CartpoleConfigModule:
-    ENV_NAME = "MBRLCartpole-v0"
-    TASK_HORIZON = 200
-    NTRAIN_ITERS = 50
-    NROLLOUTS_PER_ITER = 1
-    PLAN_HOR = 25
+class Cartpole:
+    # ENV_NAME = "MBRLCartpole-v0"
+    # TASK_HORIZON = 200
+    # NTRAIN_ITERS = 50
+    # NROLLOUTS_PER_ITER = 1
+    # PLAN_HOR = 25
     MODEL_IN, MODEL_OUT = 6, 4
     GP_NINDUCING_POINTS = 200
 
-    def __init__(self):
-        self.ENV = gym.make(self.ENV_NAME)
-        self.NN_TRAIN_CFG = {"epochs": 5}
-        self.OPT_CFG = {
-            "Random": {"popsize": 2000},
-            "CEM": {"popsize": 400, "num_elites": 40, "max_iters": 5, "alpha": 0.1},
-        }
+    def __init__(self, args):
+        self.args = args
+        self.env = gym.make("MBRLCartpole-v0")
+        # self.NN_TRAIN_CFG = {"epochs": 5}
+        # self.OPT_CFG = {
+        #     "Random": {"popsize": 2000},
+        #     "CEM": {"popsize": 400, "num_elites": 40, "max_iters": 5, "alpha": 0.1},
+        # }
 
     @staticmethod
     def obs_preproc(obs):
@@ -53,6 +55,10 @@ class CartpoleConfigModule:
         return obs + pred
 
     @staticmethod
+    def obs_postproc2(next_obs):
+        return next_obs
+
+    @staticmethod
     def targ_proc(obs, next_obs):
         return next_obs - obs
 
@@ -62,7 +68,7 @@ class CartpoleConfigModule:
             return -np.exp(
                 -np.sum(
                     np.square(
-                        CartpoleConfigModule._get_ee_pos(obs, are_tensors=False)
+                        Cartpole._get_ee_pos(obs, are_tensors=False)
                         - np.array([0.0, 0.6])
                     ),
                     axis=1,
@@ -73,7 +79,7 @@ class CartpoleConfigModule:
             return -tf.math.exp(
                 -tf.math.reduce_sum(
                     tf.math.square(
-                        CartpoleConfigModule._get_ee_pos(obs, are_tensors=True)
+                        Cartpole._get_ee_pos(obs, are_tensors=True)
                         - np.array([0.0, 0.6])
                     ),
                     axis=1,
@@ -88,7 +94,7 @@ class CartpoleConfigModule:
         else:
             return 0.01 * tf.math.reduce_sum(tf.square(acs), axis=1)
 
-    def nn_constructor(self, model_init_cfg):
+    def nn_constructor(self):
         # model = get_required_argument(
         #     model_init_cfg, "model_class", "Must provide model class"
         # )(
@@ -101,7 +107,7 @@ class CartpoleConfigModule:
         #         model_dir=model_init_cfg.get("model_dir", None),
         #     )
         # )
-        if not model_init_cfg.get("load_model", False):
+        if not self.args.load_model:
             model_config = [
                 DotMap(
                     {
@@ -190,4 +196,6 @@ class CartpoleConfigModule:
             )
 
 
-CONFIG_MODULE = CartpoleConfigModule
+@register
+def cartpole(args):
+    return Cartpole(args)
