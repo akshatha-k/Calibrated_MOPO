@@ -10,7 +10,6 @@ from dotmap import DotMap
 
 from src.misc.MBExp import MBExperiment
 from src.controllers.MPC import MPC
-from src.configs import create_config
 from src.args import get_args
 
 

@@ -10,27 +10,19 @@ from src.args import get_args
 from src.modeling.models.BNN import BNN
 from src.misc.DotmapUtils import get_required_argument
 from src.modeling.layers import FC
-import src.envs
 from src.modeling.trainers.registry import register
+from src.envs.cartpole_bullet import CartPoleContinuousBulletEnv
 
 
 class Cartpole:
-    # ENV_NAME = "MBRLCartpole-v0"
-    # TASK_HORIZON = 200
-    # NTRAIN_ITERS = 50
-    # NROLLOUTS_PER_ITER = 1
-    # PLAN_HOR = 25
     MODEL_IN, MODEL_OUT = 6, 4
     GP_NINDUCING_POINTS = 200
 
     def __init__(self, args):
         self.args = args
-        self.env = gym.make("MBRLCartpole-v0")
-        # self.NN_TRAIN_CFG = {"epochs": 5}
-        # self.OPT_CFG = {
-        #     "Random": {"popsize": 2000},
-        #     "CEM": {"popsize": 400, "num_elites": 40, "max_iters": 5, "alpha": 0.1},
-        # }
+        if args.mujoco:
+            self.env = gym.make("MBRLCartpole-v0")
+        self.env = CartPoleContinuousBulletEnv()
 
     @staticmethod
     def obs_preproc(obs):

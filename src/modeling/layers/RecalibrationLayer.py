@@ -5,7 +5,7 @@ class RecalibrationLayer(tf.keras.layers.Layer):
     def __init__(self, out_dim):
         super(RecalibrationLayer, self).__init__()
         self.out_dim = out_dim
-        self.A = self.add_variable(
+        self.A = self.add_weight(
             name="A",
             shape=[1, self.out_dim],
             initializer="uniform",
@@ -13,7 +13,7 @@ class RecalibrationLayer(tf.keras.layers.Layer):
             dtype=tf.float32,
         )
 
-        self.B = self.add_variable(
+        self.B = self.add_weight(
             name="B",
             shape=[1, self.out_dim],
             initializer="uniform",

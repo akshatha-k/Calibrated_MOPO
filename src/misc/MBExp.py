@@ -8,7 +8,7 @@ from time import time, localtime, strftime
 import numpy as np
 from scipy.io import savemat
 from dotmap import DotMap
-
+from tqdm import tqdm
 from src.modeling.trainers import BNN_trainer
 from src.misc.DotmapUtils import get_required_argument
 from src.misc.Agent import Agent
@@ -91,7 +91,7 @@ class MBExperiment:
             # os.makedirs(iter_dir, exist_ok=True)
 
             samples = []
-            for j in range(self.args.n_record):
+            for j in tqdm(range(self.args.n_record)):
                 samples.append(
                     self.agent.sample(
                         self.args.task_hor,

@@ -15,7 +15,7 @@ optimizers = {"CEM": CEMOptimizer, "Random": RandomOptimizer}
 
 
 class MPC(Controller):
-    def __init__(self, env_config, args, model_trainer, calibrate=False):
+    def __init__(self, env_config, args, model_trainer):
         super().__init__(args)
         self.env_config = env_config
         self.args = args
@@ -30,12 +30,8 @@ class MPC(Controller):
             self.env_config.env.action_space.high,
             self.env_config.env.action_space.low,
         )
-        # self.ac_ub = np.minimum(self.ac_ub, params.ac_ub)
-        # self.ac_lb = np.maximum(self.ac_lb, params.ac_lb)
-        # self.per = params.per
         self.per = 1  # TODO: see what per does and add an argument
-        self.should_calibrate = calibrate
-
+        self.should_calibrate = self.args.calibrate
         self.optimizer = optimizers[args.opt_type](
             sol_dim=self.args.plan_hor * self.dU,
             lower_bound=np.tile(self.ac_lb, [self.args.plan_hor]),
@@ -62,35 +58,12 @@ class MPC(Controller):
         )
         self.has_been_trained = False
         self.sy_cur_obs = tf.Variable(np.zeros(self.dO), dtype=tf.float32)
-        # self.ac_seq = tf.placeholder(
-        #     shape=[1, self.args.plan_hor * self.dU], dtype=tf.float32
-        # )
-        # self.pred_cost, self.pred_traj = self.compile_cost(
-        #     self.ac_seq, get_pred_trajs=True
-        # )
 
         print(
             "Created an MPC controller, prop mode %s, %d particles. Calibration set to %s"
             % (self.args.prop_type, self.args.npart, self.should_calibrate)
             + ("Ignoring variance." if self.args.ign_var else "")
         )
-
-        # if self.save_all_models:
-        #     print(
-        #         "Controller will save all models. (Note: This may be memory-intensive."
-        #     )
-        # if self.log_particles:
-        #     print(
-        #         "Controller is logging particle predictions (Note: This may be memory-intensive)."
-        #     )
-        #     self.pred_particles = []
-        #     self.pred_costs = []
-        # elif self.log_traj_preds:
-        #     print("Controller is logging trajectory prediction statistics (mean+var).")
-        #     self.pred_means, self.pred_vars = [], []
-        #     self.pred_costs = []
-        # else:
-        #     print("Trajectory prediction logging is disabled.")
 
     def train(self, obs_trajs, acs_trajs, rews_trajs, logdir=None):
         # Construct new training points and add to training set
@@ -154,26 +127,6 @@ class MPC(Controller):
             else:
                 raise NotImplementedError()
             return self.act(obs, t), pred_cost
-        # elif self.log_traj_preds or self.log_particles:
-        #     pred_cost, pred_traj = self.trainer.model.sess.run(
-        #         [self.pred_cost, self.pred_traj], feed_dict={self.ac_seq: soln[None]}
-        #     )
-        #     pred_cost, pred_traj = pred_cost[0], pred_traj[:, 0]
-
-        #     self.pred_costs.append(pred_cost)
-
-        #     if self.log_particles:
-        #         self.pred_particles.append(pred_traj)
-        #     else:
-        #         curr_mean = np.mean(pred_traj, axis=1, keepdims=True)
-        #         curr_var = np.mean(np.square(pred_traj - curr_mean), axis=1)
-        #         self.pred_means.append(
-        #             curr_mean.squeeze()
-        #         )  # np.mean(pred_traj, axis=1))
-        #         self.pred_vars.append(curr_var)
-
-        # if get_pred_cost:
-        #     return self.act(obs, t), pred_cost
         return self.act(obs, t)
 
     def compile_cost(self, ac_seqs, get_pred_trajs=False):

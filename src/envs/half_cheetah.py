@@ -17,7 +17,7 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         utils.EzPickle.__init__(self)
 
     def step(self, action):
-        self.prev_qpos = np.copy(self.model.data.qpos.flat)
+        self.prev_qpos = np.copy(self.data.qpos.flat)
         self.do_simulation(action, self.frame_skip)
         ob = self._get_obs()
 
@@ -31,9 +31,9 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def _get_obs(self):
         return np.concatenate(
             [
-                (self.model.data.qpos.flat[:1] - self.prev_qpos[:1]) / self.dt,
-                self.model.data.qpos.flat[1:],
-                self.model.data.qvel.flat,
+                (self.data.qpos.flat[:1] - self.prev_qpos[:1]) / self.dt,
+                self.data.qpos.flat[1:],
+                self.data.qvel.flat,
             ]
         )
 
@@ -41,7 +41,7 @@ class HalfCheetahEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         qpos = self.init_qpos + np.random.normal(loc=0, scale=0.001, size=self.model.nq)
         qvel = self.init_qvel + np.random.normal(loc=0, scale=0.001, size=self.model.nv)
         self.set_state(qpos, qvel)
-        self.prev_qpos = np.copy(self.model.data.qpos.flat)
+        self.prev_qpos = np.copy(self.data.qpos.flat)
         return self._get_obs()
 
     def viewer_setup(self):
